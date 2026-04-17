@@ -1,4 +1,4 @@
-package com.neuraknight.bmini4
+package com.leonardo.bmini4
 
 import android.annotation.SuppressLint
 import android.content.pm.ActivityInfo
@@ -25,7 +25,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.neuraknight.bmini4.databinding.ActivityMainBinding
+import com.leonardo.bmini4.databinding.ActivityMainBinding
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.PrintWriter
