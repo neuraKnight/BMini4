@@ -45,19 +45,156 @@ const int PIN_IND_LEFT = D0, PIN_IND_RIGHT = D3;
 const int PIN_RGB_RED = TX, PIN_RGB_GREEN = RX, PIN_RGB_BLUE = D8;
 
 // ═════════════════════════════════════════════════════════════════════════
-// CONSTANTS
+// CAR CONFIGURATION & SETTINGS
 // ═════════════════════════════════════════════════════════════════════════
 const char* SSID = "BMini4", *PSK = "26032009";
+
+// Gear Configuration (Unified - single source of truth)
+const int GEARS = 5;  // Unified gear count
+const int MAX_GEAR = GEARS;
+const int NEUTRAL_GEAR = 0;
+const int REVERSE_GEAR = -1;
+
+// Performance Settings
 const int SEVO_PATCH = 9, SERVO_MIN = 45 + SEVO_PATCH, SERVO_MAX = 135 + SEVO_PATCH, SERVO_CENTER = 90 + SEVO_PATCH, STEERING_THRESHOLD = 6;
-const int PWM_MAX = 1023, THROTTLE_LEVELS = 3, GAS_STEP = PWM_MAX / THROTTLE_LEVELS;
+const int PWM_MAX = 1023, THROTTLE_LEVELS = GEARS, GAS_STEP = PWM_MAX / THROTTLE_LEVELS;
 const int BRAKE_PULSE_MS = 200, BRAKE_LONG_MS = 1200, BLINK_INTERVAL_MS = 500;
 const int TELEM_INTERVAL_MS = 3000, KEEPALIVE_INTERVAL = 1000;
+
+// Sound System
+const int FREQ_HORN = 2200, FREQ_CONNECT = 1800, FREQ_DISCONNECT = 1200, FREQ_CLICK = 2800;
+const int FREQ_ENGINE_IDLE = 200, FREQ_ENGINE_REV = 800;
+const int FREQ_POLICE_SIREN_LOW = 440, FREQ_POLICE_SIREN_HIGH = 880;
+
+// Car Settings
+struct CarSettings {
+  int maxSpeed = PWM_MAX;
+  int steeringSensitivity = 100;  // Percentage
+  int accelerationRate = 20;      // PWM per update
+  int decelerationRate = 30;      // PWM per update
+  bool engineSoundEnabled = true;
+  bool policeSirenEnabled = true;
+  bool dynamicSteering = true;
+  int telemetryInterval = 3000;
+} carSettings;
 
 // Battery (150k/33k divider)
 const float BATTERY_MIN_V = 3.0, BATTERY_MAX_V = 4.2, VOLTAGE_DIVIDER = 4.545, ADC_REF = 3.3;
 
 // Sound frequencies
 const int FREQ_HORN = 2200, FREQ_CONNECT = 1800, FREQ_DISCONNECT = 1200, FREQ_CLICK = 2800;
+
+// Performance Modes
+enum PerformanceMode {
+  MODE_NORMAL = 0,
+  MODE_SPORT,
+  MODE_ECO,
+  MODE_CRUISE
+} performanceMode = MODE_NORMAL;
+
+struct PerformanceSettings {
+  int maxSpeed;
+  int accelerationRate;
+  int decelerationRate;
+  int steeringSensitivity;
+  bool engineSoundEnabled;
+  bool voiceFeedback;
+} perfSettings[] = {
+  {PWM_MAX, 20, 30, 100, true, true},    // NORMAL
+  {PWM_MAX, 40, 20, 120, true, true},    // SPORT (faster accel, less decel, more responsive)
+  {PWM_MAX * 0.7, 10, 40, 80, false, true}, // ECO (slower, efficient)
+  {PWM_MAX * 0.6, 15, 25, 90, true, false}  // CRUISE (balanced, no voice)
+};
+
+// PID Control for Motor
+struct PIDController {
+  float kp, ki, kd;
+  float integral, prevError;
+  unsigned long lastTime;
+  
+  PIDController(float p, float i, float d) : kp(p), ki(i), kd(d), integral(0), prevError(0), lastTime(0) {}
+  
+  float calculate(float setpoint, float current, unsigned long currentTime) {
+    float dt = (currentTime - lastTime) / 1000.0;
+    if (dt == 0) return 0;
+    
+    float error = setpoint - current;
+    integral += error * dt;
+    float derivative = (error - prevError) / dt;
+    
+    float output = kp * error + ki * integral + kd * derivative;
+    
+    prevError = error;
+    lastTime = currentTime;
+    
+    return output;
+  }
+} motorPID(0.8, 0.1, 0.05);
+
+// Speed and Distance Tracking
+struct SpeedTracker {
+  unsigned long lastUpdate;
+  float currentSpeed;
+  float totalDistance;
+  unsigned long pulseCount;
+  unsigned long lastPulseTime;
+  
+  SpeedTracker() : lastUpdate(0), currentSpeed(0), totalDistance(0), pulseCount(0), lastPulseTime(0) {}
+  
+  void updatePulse() {
+    unsigned long now = millis();
+    if (lastPulseTime > 0) {
+      float dt = (now - lastPulseTime) / 1000.0;
+      currentSpeed = 1.0 / dt;  // pulses per second
+      totalDistance += 0.1;     // assume 0.1m per pulse
+    }
+    lastPulseTime = now;
+    pulseCount++;
+  }
+  
+  float getSpeedKmh() {
+    return currentSpeed * 3.6;  // convert m/s to km/h
+  }
+} speedTracker;
+
+// Emergency System
+struct EmergencySystem {
+  bool emergencyStop;
+  unsigned long emergencyTime;
+  bool lowBatteryWarning;
+  bool overheatWarning;
+  
+  EmergencySystem() : emergencyStop(false), emergencyTime(0), lowBatteryWarning(false), overheatWarning(false) {}
+  
+  void checkEmergency(int batteryLevel) {
+    if (batteryLevel < 15 && !lowBatteryWarning) {
+      lowBatteryWarning = true;
+      emergencyStop = true;
+      playEmergencySound();
+    }
+    
+    if (emergencyStop && millis() - emergencyTime > 5000) {
+      emergencyStop = false;
+    }
+  }
+  
+  void activateEmergency() {
+    emergencyStop = true;
+    emergencyTime = millis();
+    state.gasLevel = 0;
+    state.brake = true;
+    setMotor(0);
+    playEmergencySound();
+  }
+  
+  void playEmergencySound() {
+    for (int i = 0; i < 3; i++) {
+      tone(PIN_BUZZER, 800, 200);
+      delay(100);
+    }
+    noTone(PIN_BUZZER);
+  }
+} emergencySystem;
 
 // ═════════════════════════════════════════════════════════════════════════
 // PRECOMPUTED TABLES
@@ -135,12 +272,31 @@ enum ConnState {
   CONN_LOST
 } connState = CONN_DISCONNECTED;
 
+enum SoundMode {
+  SOUND_OFF = 0,
+  SOUND_ENGINE,
+  SOUND_HORN,
+  SOUND_POLICE,
+  SOUND_ALARM
+} soundMode = SOUND_OFF;
+
+enum EngineState {
+  ENGINE_OFF = 0,
+  ENGINE_IDLE,
+  ENGINE_REVVING,
+  ENGINE_FULL
+} engineState = ENGINE_OFF;
+
 struct {
   bool forward = true, headlights = false, soundEnabled = true;
   int servo = SERVO_CENTER, gasLevel = 0;
   IndMode indMode = IND_OFF;
   bool brake = false, brakeLongTriggered = false, brakePulseActive = false;
   unsigned long brakeStart = 0, brakePulseStart = 0;
+  int currentGear = NEUTRAL_GEAR;
+  int targetGear = NEUTRAL_GEAR;
+  unsigned long gearChangeStart = 0;
+  bool isShifting = false;
 } state;
 
 struct {
@@ -160,16 +316,42 @@ int batteryPercent = 0;
 // ═════════════════════════════════════════════════════════════════════════
 // BATTERY
 // ═════════════════════════════════════════════════════════════════════════
-int readBatteryLevel() {
-  uint32_t sum = 0;
-  for (int i = 0; i < 10; i++) {
-    sum += analogRead(A0);
-    delay(10);
+// Optimized non-blocking battery reading
+struct BatteryMonitor {
+  uint32_t sum;
+  int sampleCount;
+  unsigned long lastSampleTime;
+  bool samplingComplete;
+  
+  BatteryMonitor() : sum(0), sampleCount(0), lastSampleTime(0), samplingComplete(false) {}
+  
+  void sample() {
+    unsigned long now = millis();
+    if (now - lastSampleTime >= 5) {  // Sample every 5ms
+      sum += analogRead(A0);
+      sampleCount++;
+      lastSampleTime = now;
+      
+      if (sampleCount >= 5) {  // Reduced from 10 to 5 samples
+        samplingComplete = true;
+      }
+    }
   }
-  float v = (sum / 10.0 / 1024.0) * ADC_REF * VOLTAGE_DIVIDER;
-  int pct = map(v * 100, BATTERY_MIN_V * 100, BATTERY_MAX_V * 100, 0, 100);
-  return constrain(pct, 0, 100);
-}
+  
+  int getLevel() {
+    if (!samplingComplete) return -1;
+    
+    float v = (sum / (float)sampleCount / 1024.0) * ADC_REF * VOLTAGE_DIVIDER;
+    int pct = map(v * 100, BATTERY_MIN_V * 100, BATTERY_MAX_V * 100, 0, 100);
+    return constrain(pct, 0, 100);
+  }
+  
+  void reset() {
+    sum = 0;
+    sampleCount = 0;
+    samplingComplete = false;
+  }
+} batteryMonitor;
 
 // ═════════════════════════════════════════════════════════════════════════
 // RGB
@@ -383,11 +565,139 @@ void handleSpeed(const char *a) {
 void handleStatus(const char *a) {
   rgb.statusIndicator = (strcmp(a, "on") == 0);
 }
-void handleSound(const char *a) { state.soundEnabled = (strcmp(a, "on") == 0); }
+void handleSound(const char *a) { 
+  if (strcmp(a, "on") == 0) {
+    state.soundEnabled = true;
+    soundMode = SOUND_ENGINE;
+    playEngineSound();
+  } else if (strcmp(a, "off") == 0) {
+    state.soundEnabled = false;
+    soundMode = SOUND_OFF;
+    noTone(PIN_BUZZER);
+  } else if (strcmp(a, "horn") == 0) {
+    soundMode = SOUND_HORN;
+    tone(PIN_BUZZER, FREQ_HORN, 200);
+  } else if (strcmp(a, "police") == 0) {
+    soundMode = SOUND_POLICE;
+    playPoliceSiren();
+  } else if (strcmp(a, "alarm") == 0) {
+    soundMode = SOUND_ALARM;
+    playAlarm();
+  }
+}
+
+// Sound System Functions
+void playEngineSound() {
+  if (!state.soundEnabled || soundMode != SOUND_ENGINE) return;
+  
+  unsigned long now = millis();
+  static unsigned long lastEngineUpdate = 0;
+  
+  if (now - lastEngineUpdate > 50) {  // 20Hz engine sound
+    lastEngineUpdate = now;
+    
+    int baseFreq = FREQ_ENGINE_IDLE;
+    if (state.gasLevel > 0) {
+      int rpm = map(state.gasLevel, 0, THROTTLE_LEVELS, FREQ_ENGINE_IDLE, FREQ_ENGINE_REV);
+      baseFreq = rpm;
+    }
+    
+    // Add some variation to sound more realistic
+    int variation = random(-20, 20);
+    tone(PIN_BUZZER, baseFreq + variation, 50);
+  }
+}
+
+void playPoliceSiren() {
+  if (!state.soundEnabled || soundMode != SOUND_POLICE) return;
+  
+  static bool sirenState = false;
+  static unsigned long lastSirenUpdate = 0;
+  unsigned long now = millis();
+  
+  if (now - lastSirenUpdate > 300) {  // Police siren pattern
+    lastSirenUpdate = now;
+    sirenState = !sirenState;
+    tone(PIN_BUZZER, sirenState ? FREQ_POLICE_SIREN_LOW : FREQ_POLICE_SIREN_HIGH, 200);
+  }
+}
+
+void playAlarm() {
+  if (!state.soundEnabled || soundMode != SOUND_ALARM) return;
+  
+  static unsigned long lastAlarmUpdate = 0;
+  unsigned long now = millis();
+  
+  if (now - lastAlarmUpdate > 100) {  // Fast alarm pattern
+    lastAlarmUpdate = now;
+    tone(PIN_BUZZER, 1000, 50);
+    delay(30);
+    noTone(PIN_BUZZER);
+  }
+}
+
+// Gear Management
+void updateGear() {
+  if (state.isShifting) {
+    unsigned long now = millis();
+    if (now - state.gearChangeStart > 500) {  // Gear change takes 500ms
+      state.isShifting = false;
+      state.currentGear = state.targetGear;
+    }
+    return;
+  }
+  
+  // Auto-shift logic based on throttle
+  if (state.gasLevel > 0 && state.currentGear == NEUTRAL_GEAR) {
+    state.targetGear = 1;
+    startGearChange();
+  } else if (state.gasLevel == 0 && state.currentGear > 0) {
+    state.targetGear = NEUTRAL_GEAR;
+    startGearChange();
+  } else if (state.gasLevel > 0 && state.currentGear < MAX_GEAR && state.gasLevel >= state.currentGear * 2) {
+    state.targetGear = min(state.currentGear + 1, MAX_GEAR);
+    startGearChange();
+  } else if (state.gasLevel < state.currentGear * 2 && state.currentGear > 1) {
+    state.targetGear = max(state.currentGear - 1, 1);
+    startGearChange();
+  }
+}
+
+void startGearChange() {
+  if (state.currentGear != state.targetGear) {
+    state.isShifting = true;
+    state.gearChangeStart = millis();
+    
+    // Play gear change sound
+    if (state.soundEnabled) {
+      tone(PIN_BUZZER, 400, 100);
+      delay(50);
+      tone(PIN_BUZZER, 600, 100);
+    }
+  }
+}
+
+int getEffectiveThrottle() {
+  if (state.isShifting) {
+    // Reduce throttle during gear change
+    return state.gasLevel * 0.3;
+  }
+  return state.gasLevel;
+}
 
 void handleServo(const char *a) {
   int v = constrain(atoi(a), SERVO_MIN, SERVO_MAX);
-  if (abs(v - state.servo) >= STEERING_THRESHOLD) {
+  
+  // Dynamic steering sensitivity based on speed
+  int sensitivity = carSettings.steeringSensitivity;
+  if (carSettings.dynamicSteering && state.gasLevel > 0) {
+    // Reduce sensitivity at higher speeds
+    sensitivity = map(state.gasLevel, 0, THROTTLE_LEVELS, 100, 50);
+    sensitivity = constrain(sensitivity, 50, 100);
+  }
+  
+  int threshold = STEERING_THRESHOLD * (100 / sensitivity);
+  if (abs(v - state.servo) >= threshold) {
     steeringServo.write(v);
     state.servo = v;
   }
@@ -431,10 +741,55 @@ void setMotor(int pwm, bool dir = state.forward) {
 }
 
 void updateMotor() {
+  // Emergency stop check
+  if (emergencySystem.emergencyStop) {
+    setMotor(0);
+    return;
+  }
+  
   if (state.brakePulseActive) return;
-  int pwm = state.brake && !state.brakeLongTriggered
-    ? 0 : min(state.gasLevel * GAS_STEP, PWM_MAX);
-  setMotor(pwm);
+  
+  int effectiveThrottle = getEffectiveThrottle();
+  int targetPwm = state.brake && !state.brakeLongTriggered 
+    ? 0 : min(effectiveThrottle * GAS_STEP, perfSettings[performanceMode].maxSpeed);
+  
+  // PID control for smoother motor response
+  unsigned long now = millis();
+  float pidOutput = motorPID.calculate(targetPwm, getCurrentMotorPwm(), now);
+  float correctedPwm = targetPwm + pidOutput;
+  
+  // Apply performance mode settings
+  int changeRate = correctedPwm > getCurrentMotorPwm() 
+    ? perfSettings[performanceMode].accelerationRate 
+    : perfSettings[performanceMode].decelerationRate;
+  
+  static int currentPwm = 0;
+  int pwmDiff = correctedPwm - currentPwm;
+  
+  if (abs(pwmDiff) > changeRate) {
+    currentPwm += pwmDiff > 0 ? changeRate : -changeRate;
+  } else {
+    currentPwm = correctedPwm;
+  }
+  
+  currentPwm = constrain(currentPwm, 0, perfSettings[performanceMode].maxSpeed);
+  setMotor(currentPwm);
+  
+  // Update engine sound based on actual motor output
+  if (perfSettings[performanceMode].engineSoundEnabled && soundMode == SOUND_ENGINE) {
+    playEngineSound();
+  }
+  
+  // Update speed tracking
+  if (currentPwm > 0) {
+    speedTracker.updatePulse();
+  }
+}
+
+int getCurrentMotorPwm() {
+  // This would need to be implemented based on actual motor feedback
+  // For now, return current target
+  return state.gasLevel * GAS_STEP;
 }
 
 void handleBrake(const char *a) {
@@ -473,16 +828,64 @@ void processCmd(char *cmd) {
            {"sound ", handleSound},
            {"gas ", handleGas},
            {"brake ", handleBrake},
+           {"gear ", handleGear},
+           {"settings ", handleSettings},
            {"ping", [](const char *) {
               if (client.connected())
                 client.println("PONG");
             }}};
-  for (int i = 0; i < 12; i++) {
+  for (int i = 0; i < 13; i++) {
     size_t len = strlen(h[i].p);
     if (strncmp(cmd, h[i].p, len) == 0) {
       h[i].h(cmd + len);
       lastClientActivity = millis();
       return;
+    }
+  }
+}
+
+void handleGear(const char *a) {
+  int gear = atoi(a);
+  if (gear >= REVERSE_GEAR && gear <= MAX_GEAR) {
+    state.targetGear = gear;
+    startGearChange();
+  }
+}
+
+void handleSettings(const char *a) {
+  char setting[32] = {0}, value[16] = {0};
+  sscanf(a, "%31s %15s", setting, value);
+  
+  if (strcmp(setting, "maxSpeed") == 0) {
+    int speed = atoi(value);
+    if (speed >= 100 && speed <= PWM_MAX) {
+      carSettings.maxSpeed = speed;
+    }
+  } else if (strcmp(setting, "steeringSens") == 0) {
+    int sens = atoi(value);
+    if (sens >= 50 && sens <= 100) {
+      carSettings.steeringSensitivity = sens;
+    }
+  } else if (strcmp(setting, "accRate") == 0) {
+    int rate = atoi(value);
+    if (rate >= 10 && rate <= 100) {
+      carSettings.accelerationRate = rate;
+    }
+  } else if (strcmp(setting, "decRate") == 0) {
+    int rate = atoi(value);
+    if (rate >= 10 && rate <= 100) {
+      carSettings.decelerationRate = rate;
+    }
+  } else if (strcmp(setting, "engineSound") == 0) {
+    carSettings.engineSoundEnabled = (strcmp(value, "on") == 0);
+  } else if (strcmp(setting, "policeSiren") == 0) {
+    carSettings.policeSirenEnabled = (strcmp(value, "on") == 0);
+  } else if (strcmp(setting, "dynamicSteer") == 0) {
+    carSettings.dynamicSteering = (strcmp(value, "on") == 0);
+  } else if (strcmp(setting, "telemInterval") == 0) {
+    int interval = atoi(value);
+    if (interval >= 1000 && interval <= 10000) {
+      carSettings.telemetryInterval = interval;
     }
   }
 }
@@ -533,23 +936,45 @@ void handleClient() {
 // ═════════════════════════════════════════════════════════════════════════
 void handleAnimations() {
   unsigned long now = millis();
+  
+  // Update gear system
+  updateGear();
+  
+  // Handle brake pulse
   if (state.brakePulseActive && now - state.brakePulseStart >= BRAKE_PULSE_MS) {
     state.brakePulseActive = false;
     setMotor(0);
   }
+  
+  // Enhanced telemetry with gear and status information
   static unsigned long lastTelem = 0;
-  if (client.connected() && now - lastTelem >= TELEM_INTERVAL_MS) {
+  if (client.connected() && now - lastTelem >= carSettings.telemetryInterval) {
     batteryPercent = readBatteryLevel();
     client.print("TELEM:");
-    client.println(batteryPercent);
+    client.print(batteryPercent);
+    client.print(",");
+    client.print(state.currentGear);
+    client.print(",");
+    client.print(state.gasLevel);
+    client.print(",");
+    client.print(state.forward ? "F" : "R");
+    client.print(",");
+    client.print(state.brake ? "B" : "N");
+    client.print(",");
+    client.println(connState == CONN_CONNECTED ? "1" : "0");
     lastTelem = now;
   }
+  
   updateMotor();
+  
+  // Enhanced lighting effects
   static unsigned long lastBlink = 0;
   static bool blinkState = false;
   if (now - lastBlink >= BLINK_INTERVAL_MS) {
     blinkState = !blinkState;
     lastBlink = now;
+    
+    // Turn indicators
     if (state.indMode == IND_LEFT) {
       digitalWrite(PIN_IND_LEFT, blinkState);
       digitalWrite(PIN_IND_RIGHT, LOW);
@@ -557,15 +982,40 @@ void handleAnimations() {
       digitalWrite(PIN_IND_RIGHT, blinkState);
       digitalWrite(PIN_IND_LEFT, LOW);
     }
+    
+    // Enhanced brake/reverse lights
     if (state.brakeLongTriggered) {
+      // Pulsing brake lights in reverse
       digitalWrite(PIN_BACKLIGHTS, blinkState);
       setRgbColor(blinkState * 255, 0, 0);
+    } else if (state.brake) {
+      // Solid brake lights
+      digitalWrite(PIN_BACKLIGHTS, HIGH);
+      setRgbColor(255, 0, 0);
+    } else if (state.currentGear == REVERSE_GEAR) {
+      // Pulsing reverse lights
+      digitalWrite(PIN_BACKLIGHTS, blinkState);
+      setRgbColor(0, 0, 255);
+    } else {
+      digitalWrite(PIN_BACKLIGHTS, LOW);
+      setRgbColor(0, 0, 0);
     }
   }
+  
+  // Gear change logic
   if (state.brake && !state.brakeLongTriggered &&
       now - state.brakeStart > BRAKE_LONG_MS) {
     state.brakeLongTriggered = true;
     state.forward = false;
+    state.targetGear = REVERSE_GEAR;
+    startGearChange();
+  }
+  
+  // Handle sound modes
+  if (soundMode == SOUND_POLICE && carSettings.policeSirenEnabled) {
+    playPoliceSiren();
+  } else if (soundMode == SOUND_ALARM) {
+    playAlarm();
   }
 }
 
@@ -581,6 +1031,8 @@ void setup() {
   WiFi.softAP(SSID, PSK, 1, 0, 1);
   server.begin();
   buildLookupTables();
+  
+  // Initialize pins
   pinMode(PIN_MOTOR_F, OUTPUT);
   pinMode(PIN_MOTOR_R, OUTPUT);
   pinMode(PIN_HEADLIGHTS, OUTPUT);
@@ -592,6 +1044,8 @@ void setup() {
   pinMode(PIN_RGB_GREEN, OUTPUT);
   pinMode(PIN_RGB_BLUE, OUTPUT);
   pinMode(A0, INPUT);
+  
+  // Initialize outputs
   analogWrite(PIN_MOTOR_F, 0);
   analogWrite(PIN_MOTOR_R, 0);
   digitalWrite(PIN_HEADLIGHTS, LOW);
@@ -600,10 +1054,17 @@ void setup() {
   digitalWrite(PIN_IND_RIGHT, LOW);
   noTone(PIN_BUZZER);
   setRgbColor(0, 0, 0);
+  
+  // Initialize servo and systems
   steeringServo.attach(PIN_SERVO);
   steeringServo.write(SERVO_CENTER);
+  
+  // Initialize car state
+  state.currentGear = NEUTRAL_GEAR;
+  state.targetGear = NEUTRAL_GEAR;
+  
   connState = CONN_CONNECTING;
-  DEBUG_INFO("BMini4 Ready");
+  DEBUG_INFO("BMini4 Ready - Enhanced Car System");
 }
 
 void loop() {

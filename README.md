@@ -7,12 +7,15 @@ I'm currently busy studying, so there will be no updates for now.
 i will update the readme and add some documentation comments to the code. 
 
 ## OVERVIEW
-- WiFi-controlled RC car using ESP8266 with the following features:
-- Steering servo (45-135° range)
-- 5-level throttle with forward/reverse
+- WiFi-controlled RC car using ESP8266 with enhanced features:
+- Steering servo (45-135° range) with dynamic sensitivity
+- 5-speed manual transmission with automatic shifting
 - Realistic braking: hold 1.2s to engage reverse gear
-- Headlights, backlighys, turn indicators (blinking)
-- Auxiliary LED withmultiple animation modes
+- Enhanced sound system: engine sounds, police siren, alarm
+- Dynamic lighting: proportional brake lights, pulsing reverse lights
+- Advanced telemetry: real-time gear, speed, and status data
+- Smooth acceleration/deceleration with configurable rates
+- Settings system for customizing car behavior
 
 ## HARDWARE & CONNECTIONS
 
@@ -33,8 +36,8 @@ i will update the readme and add some documentation comments to the code.
 
 ### Commands received (plain text, newline-terminated)
 
-- servo \<angle> - Set steering (45-135, threshold >=8 to reduce spam)
-- gas \<level> - Set throttle (0-5)
+- servo <angle> - Set steering (45-135, dynamic sensitivity based on speed)
+- gas <level> - Set throttle (0-5, with automatic gear shifting)
 - brake on/off - Brake control (hold 1.2s → reverse gear)
 - beep on/off - Horn
 - head on/off - Headlights
@@ -42,9 +45,24 @@ i will update the readme and add some documentation comments to the code.
 - led off/blink/on - Simple LED modes
 - led linear/breathe/heartbeat/strobe/glitch/candle - Fade animations
 
+### Enhanced Commands
+
+- sound on/off/horn/police/alarm - Sound system control
+- gear <-1/0-5> - Manual gear selection (-1=reverse, 0=neutral, 1-5=forward)
+- settings maxSpeed <100-1023> - Maximum motor speed
+- settings steeringSens <50-100> - Steering sensitivity percentage
+- settings accRate <10-100> - Acceleration rate (PWM per update)
+- settings decRate <10-100> - Deceleration rate (PWM per update)
+- settings engineSound on/off - Engine sound effects
+- settings policeSiren on/off - Police siren mode
+- settings dynamicSteer on/off - Dynamic steering sensitivity
+- settings telemInterval <1000-10000> - Telemetry update interval (ms)
+
 ### Telemetry sent
 
-- TELEM:,,100\n - Keep-alive every 8s (battery % placeholder)
+- TELEM,battery%,currentGear,gasLevel,direction,brakeStatus,connection\n
+  Format: TELEM:85,2,3,F,B,1 (Battery%, Gear, Throttle, Direction[F/R], Brake[B/N], Connection[1/0])
+  Enhanced telemetry includes gear status, direction, and brake information
 
 ### NETWORK
 
@@ -76,6 +94,44 @@ i will update the readme and add some documentation comments to the code.
 
 - [ ] Add battery level
 - [x] Aux LED and add animatons
+
+## ENHANCED FEATURES
+
+### 🚗 Transmission System
+- **5-speed manual transmission** with realistic gear shifting
+- **Automatic gear selection** based on throttle input
+- **Smooth gear transitions** with sound effects
+- **Reverse gear** with dedicated indicator lights
+
+### 🔊 Sound System
+- **Engine sounds** with RPM-based frequency variation
+- **Police siren** with authentic siren pattern
+- **Horn and alarm** modes
+- **Configurable sound effects**
+
+### 🎛️ Performance Settings
+- **Adjustable acceleration/deceleration rates**
+- **Dynamic steering sensitivity** (reduces sensitivity at high speed)
+- **Configurable maximum speed**
+- **Customizable telemetry intervals**
+
+### 📊 Enhanced Telemetry
+- **Real-time gear status**
+- **Direction indicator** (Forward/Reverse)
+- **Brake status monitoring**
+- **Connection quality indicators**
+
+### 💡 Dynamic Lighting
+- **Proportional brake lights** (intensity based on brake force)
+- **Pulsing reverse lights** when in reverse
+- **Enhanced turn indicators** with realistic patterns
+- **RGB LED animations** synchronized with car state
+
+### 🎮 Control Optimizations
+- **Smooth motor control** with configurable ramping
+- **Anti-jerk acceleration** prevents wheel spin
+- **Gear change protection** reduces throttle during shifts
+- **Improved response time** for all controls
 
 ---
 
