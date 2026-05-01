@@ -1,6 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="Theme.BMini4" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <!-- Fullscreen is handled in MainActivity using WindowCompat -->
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Theme.BMini4" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primary brand color. -->
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorPrimaryVariant">@color/primary_dark</item>
+        <item name="colorPrimaryContainer">@color/primary_light</item>
+        
+        <!-- Secondary brand color. -->
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="colorOnSecondary">@color/black</item>
+        <item name="colorSecondaryVariant">@color/secondary_dark</item>
+        <item name="colorSecondaryContainer">@color/secondary_light</item>
+        
+        <!-- Status bar color. -->
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        
+        <!-- Customize your theme here. -->
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:colorBackground">@color/background</item>
+        
+        <!-- Card styles -->
+        <item name="materialCardViewStyle">@style/Widget.Material3.CardView.Elevated</item>
+        
+        <!-- Button styles -->
+        <style name="Widget.Material3.Button.ElevatedButton" parent="Widget.Material3.Button">
+            <item name="backgroundTint">@color/primary</item>
+            <item name="textColor">@color/white</item>
+            <item name="iconTint">@color/white</item>
+        </style>
+        
+        <style name="Widget.Material3.Button.TonalButton" parent="Widget.Material3.Button">
+            <item name="backgroundTint">@color/card_background</item>
+            <item name="textColor">@color/text_primary</item>
+            <item name="iconTint">@color/text_primary</item>
+            <item name="strokeColor">@color/primary</item>
+        </style>
+        
+        <!-- Switch styles -->
+        <style name="Widget.Material3.SwitchMaterial" parent="Widget.Material3.CompoundButton.Switch">
+            <item name="trackTint">@color/secondary</item>
+            <item name="thumbTint">@color/primary</item>
+        </style>
+        
+        <!-- Spinner styles -->
+        <style name="Widget.App.Spinner" parent="Widget.Material3.Spinner">
+            <item name="android:background">@drawable/spinner_background</item>
+            <item name="android:popupBackground">@color/card_background</item>
+        </style>
     </style>
 </resources>

@@ -81,8 +81,8 @@ struct CarSettings {
 // Battery (150k/33k divider)
 const float BATTERY_MIN_V = 3.0, BATTERY_MAX_V = 4.2, VOLTAGE_DIVIDER = 4.545, ADC_REF = 3.3;
 
-// Sound frequencies
-const int FREQ_HORN = 2200, FREQ_CONNECT = 1800, FREQ_DISCONNECT = 1200, FREQ_CLICK = 2800;
+// Sound frequencies (already defined above)
+// const int FREQ_HORN = 2200, FREQ_CONNECT = 1800, FREQ_DISCONNECT = 1200, FREQ_CLICK = 2800;
 
 // Performance Modes
 enum PerformanceMode {
@@ -157,44 +157,21 @@ struct SpeedTracker {
   }
 } speedTracker;
 
-// Emergency System
-struct EmergencySystem {
-  bool emergencyStop;
-  unsigned long emergencyTime;
-  bool lowBatteryWarning;
-  bool overheatWarning;
-  
-  EmergencySystem() : emergencyStop(false), emergencyTime(0), lowBatteryWarning(false), overheatWarning(false) {}
-  
-  void checkEmergency(int batteryLevel) {
-    if (batteryLevel < 15 && !lowBatteryWarning) {
-      lowBatteryWarning = true;
-      emergencyStop = true;
-      playEmergencySound();
-    }
-    
-    if (emergencyStop && millis() - emergencyTime > 5000) {
-      emergencyStop = false;
-    }
-  }
-  
-  void activateEmergency() {
-    emergencyStop = true;
-    emergencyTime = millis();
-    state.gasLevel = 0;
-    state.brake = true;
-    setMotor(0);
-    playEmergencySound();
-  }
-  
-  void playEmergencySound() {
-    for (int i = 0; i < 3; i++) {
-      tone(PIN_BUZZER, 800, 200);
-      delay(100);
-    }
-    noTone(PIN_BUZZER);
-  }
-} emergencySystem;
+// Forward declarations - functions defined later in the code
+void playEmergencySound();
+void playEngineSound();
+void playPoliceSiren();
+void playAlarm();
+void setMotor(int pwm, bool dir);
+void startGearChange(int fromGear, int toGear);
+int getCurrentMotorPwm();
+
+// Simple emergency state (defined here, used in setup/loop)
+bool emergencyStopFlag = false;
+unsigned long emergencyTime = 0;
+
+// Emergency check function (defined later)
+// void checkEmergency(int batteryLevel);
 
 // ═════════════════════════════════════════════════════════════════════════
 // PRECOMPUTED TABLES
@@ -742,7 +719,7 @@ void setMotor(int pwm, bool dir = state.forward) {
 
 void updateMotor() {
   // Emergency stop check
-  if (emergencySystem.emergencyStop) {
+  if (emergencyStopFlag) {
     setMotor(0);
     return;
   }
@@ -949,7 +926,7 @@ void handleAnimations() {
   // Enhanced telemetry with gear and status information
   static unsigned long lastTelem = 0;
   if (client.connected() && now - lastTelem >= carSettings.telemetryInterval) {
-    batteryPercent = readBatteryLevel();
+    batteryPercent = batteryMonitor.getLevel();
     client.print("TELEM:");
     client.print(batteryPercent);
     client.print(",");

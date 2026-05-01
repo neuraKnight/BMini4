@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-    namespace = "com.neuraknight.bmini4"
+    namespace = "com.leonardo.bmini4"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.neuraknight.bmini4"
+        applicationId = "com.leonardo.bmini4"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "V8"
+        versionCode = 12
+        versionName = "V12 Pro"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

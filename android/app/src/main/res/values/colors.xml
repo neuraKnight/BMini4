@@ -1,10 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- Primary Colors -->
+    <color name="primary">#BB86FC</color>
+    <color name="primary_dark">#3700B3</color>
+    <color name="primary_light">#CFD8DC</color>
+    
+    <!-- Secondary Colors -->
+    <color name="secondary">#03DAC6</color>
+    <color name="secondary_dark">#018786</color>
+    <color name="secondary_light">#E0F2F1</color>
+    
+    <!-- Status Colors -->
+    <color name="status_connected">#4CAF50</color>
+    <color name="status_connecting">#FF9800</color>
+    <color name="status_disconnected">#F44336</color>
+    <color name="status_failed">#F44336</color>
+    <color name="status_lost">#FF9800</color>
+    
+    <!-- Battery Colors -->
+    <color name="battery_good">#4CAF50</color>
+    <color name="battery_medium">#FF9800</color>
+    <color name="battery_low">#F44336</color>
+    
+    <!-- Control Colors -->
+    <color name="gas_color">#388E3C</color>
+    <color name="brake_color">#D32F2F</color>
+    <color name="emergency_bg">#D32F2F</color>
+    <color name="emergency_text">#FFFFFF</color>
+    
+    <!-- Background Colors -->
+    <color name="background">#000000</color>
+    <color name="card_background">#1E1E1E</color>
+    <color name="gear_display_bg">#2A2A2A</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#CCCCCC</color>
+    <color name="text_tertiary">#888888</color>
+    
+    <!-- Default Colors -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="red">#FF0000</color>
+    <color name="green">#00FF00</color>
+    <color name="blue">#0000FF</color>
+    <color name="yellow">#FFFF00</color>
+    <color name="gray">#808080</color>
+    <color name="transparent">#00000000</color>
 </resources>

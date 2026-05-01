@@ -42,6 +42,10 @@ object Debug {
     }
 }
 
+enum class PerformanceMode {
+    NORMAL, SPORT, ECO
+}
+
 class MainActivity : AppCompatActivity(), SensorEventListener {
 
     private lateinit var binding: ActivityMainBinding
@@ -63,6 +67,8 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     private var lastTelemetryTime = 0L
     private var connectionLost = false
     private var batteryLevel = 0
+    private var currentGear = 0
+    private var currentDirection = "N"
 
     // RGB state
     private var currentRgbColor = 0xFFFFFF
@@ -80,6 +86,9 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     // Sound & status
     private var soundEnabled = true
     private var statusIndicatorEnabled = true
+    
+    // Performance mode
+    private var currentPerformanceMode = PerformanceMode.NORMAL
 
     companion object {
         private const val TAG = "BMini4"
@@ -88,7 +97,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         private const val SERVO_CENTER = (SERVO_MIN + SERVO_MAX) / 2
         private const val STEERING_THRESHOLD = 6
         private const val AUTO_IND_THRESHOLD = 15
-        private const val THROTTLE_LEVELS = 3
+        private const val THROTTLE_LEVELS = 5
         
         private const val SERVER_IP = "192.168.4.1"
         private const val SERVER_PORT = 80
@@ -171,11 +180,67 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
 
     @SuppressLint("ClickableViewAccessibility")
     private fun setupControls() {
-        binding.buttonConnect.setOnClickListener {
-            if (binding.buttonConnect.text == getString(R.string.connect)) connectToServer() 
-            else disconnectFromServer()
+        // Emergency Stop Button
+        binding.buttonEmergencyStop.setOnClickListener {
+            vibrate(VIBRATE_LONG)
+            send("brake on")
+            send("gas 0")
+            send("sound alarm")
+            binding.textviewGearStatus.text = "E"
+            binding.textviewGearStatus.setTextColor(Color.RED)
+            handler.postDelayed({
+                send("brake off")
+                send("sound off")
+                binding.textviewGearStatus.text = "N"
+                binding.textviewGearStatus.setTextColor(getColor(R.color.primary))
+            }, 2000)
         }
 
+        // Performance Mode Buttons
+        binding.buttonModeNormal.setOnClickListener {
+            currentPerformanceMode = PerformanceMode.NORMAL
+            updatePerformanceModeUI()
+            send("settings accRate 20")
+            send("settings decRate 30")
+            vibrate(VIBRATE_SHORT)
+        }
+        
+        binding.buttonModeSport.setOnClickListener {
+            currentPerformanceMode = PerformanceMode.SPORT
+            updatePerformanceModeUI()
+            send("settings accRate 40")
+            send("settings decRate 20")
+            vibrate(VIBRATE_SHORT)
+        }
+        
+        binding.buttonModeEco.setOnClickListener {
+            currentPerformanceMode = PerformanceMode.ECO
+            updatePerformanceModeUI()
+            send("settings accRate 10")
+            send("settings decRate 40")
+            vibrate(VIBRATE_SHORT)
+        }
+
+        // Sound Controls
+        binding.buttonSoundEngine.setOnClickListener {
+            soundEnabled = true
+            send("sound on")
+            vibrate(VIBRATE_SHORT)
+        }
+        
+        binding.buttonSoundPolice.setOnClickListener {
+            soundEnabled = true
+            send("sound police")
+            vibrate(VIBRATE_SHORT)
+        }
+        
+        binding.buttonSoundHorn.setOnClickListener {
+            send("beep on")
+            vibrate(VIBRATE_LONG)
+            handler.postDelayed({ send("beep off") }, 500)
+        }
+
+        // Headlights
         binding.switchHeadlights.setOnCheckedChangeListener { _, isChecked ->
             send("head ${if (isChecked) "on" else "off"}")
         }
@@ -189,19 +254,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
             lastHeadlightTap = now
         }
 
-        binding.root.setOnLongClickListener {
-            vibrate(VIBRATE_LONG)
-            send("beep on")
-            true
-        }
-        
-        binding.root.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
-                send("beep off")
-            }
-            false
-        }
-
+        // RGB Mode Spinner
         binding.spinnerRgbMode.adapter = ArrayAdapter(
             this,
             android.R.layout.simple_spinner_item,
@@ -230,6 +283,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         
         setupColorPresets()
 
+        // Turn Indicators
         var selectedIndicator: View? = null
 
         fun selectIndicator(button: View, cmd: String) {
@@ -245,17 +299,7 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         binding.buttonIndRight.setOnClickListener { selectIndicator(it, "right") }
         binding.buttonIndOff.performClick()
 
-        binding.buttonBeep.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    vibrate(VIBRATE_LONG)
-                    send("beep on")
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> send("beep off")
-            }
-            true
-        }
-
+        // Brake Pedal
         binding.buttonBrake.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -265,14 +309,17 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                     binding.buttonGas.isEnabled = true
                     currentGas = 0
                     updateGasVisual(0)
+                    binding.brakeProgress.progress = 100
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     send("brake off")
+                    binding.brakeProgress.progress = 0
                 }
             }
             true
         }
 
+        // Gas Pedal
         binding.buttonGas.setOnTouchListener { v, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
@@ -281,16 +328,24 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                         currentGas = level
                         updateGasVisual(level)
                         send("gas $level")
+                        binding.gasProgress.progress = (level * 100) / THROTTLE_LEVELS
                     }
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     currentGas = 0
                     updateGasVisual(0)
                     send("gas 0")
+                    binding.gasProgress.progress = 0
                 }
             }
             true
         }
+    }
+
+    private fun updatePerformanceModeUI() {
+        binding.buttonModeNormal.isSelected = currentPerformanceMode == PerformanceMode.NORMAL
+        binding.buttonModeSport.isSelected = currentPerformanceMode == PerformanceMode.SPORT
+        binding.buttonModeEco.isSelected = currentPerformanceMode == PerformanceMode.ECO
     }
 
     private fun setupColorPresets() {
@@ -485,6 +540,35 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
         }
     }
     
+    private fun updateGearDisplay(gear: Int, direction: String) {
+        currentGear = gear
+        currentDirection = direction
+        val gearText = when {
+            gear == 0 && direction == "N" -> "N"
+            gear == -1 -> "R"
+            gear > 0 -> gear.toString()
+            else -> "N"
+        }
+        binding.textviewGearStatus.text = gearText
+        binding.textviewGearDisplay.text = gearText
+        
+        // Color code based on gear
+        when {
+            gear == -1 -> {
+                binding.textviewGearStatus.setTextColor(Color.RED)
+                binding.textviewGearDisplay.setTextColor(Color.RED)
+            }
+            gear == 0 -> {
+                binding.textviewGearStatus.setTextColor(getColor(R.color.primary))
+                binding.textviewGearDisplay.setTextColor(getColor(R.color.primary))
+            }
+            else -> {
+                binding.textviewGearStatus.setTextColor(Color.GREEN)
+                binding.textviewGearDisplay.setTextColor(Color.GREEN)
+            }
+        }
+    }
+    
     private fun vibrate(duration: Long) {
         if (vibrator.hasVibrator()) {
             vibrator.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE))
@@ -515,19 +599,31 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
                             
                             if (line.startsWith("TELEM:")) {
                                 lastTelemetryTime = System.currentTimeMillis()
-                                batteryLevel = line.substring(6).toIntOrNull() ?: 0
-                                val color = when {
-                                    batteryLevel > 70 -> Color.rgb(0, 255, 0)
-                                    batteryLevel > 30 -> Color.rgb(255, 255, 0)
-                                    else -> Color.rgb(255, 0, 0)
-                                }
-                                runOnUiThread {
-                                    binding.textviewBatteryStatus.text = getString(R.string.label_battery, batteryLevel)
-                                    binding.textviewBatteryStatus.setTextColor(color)
-                                }
-                                if (connectionLost) {
-                                    connectionLost = false
-                                    runOnUiThread { updateConnectionStatus(ConnectionStatus.CONNECTED) }
+                                val parts = line.substring(6).split(",")
+                                if (parts.size >= 6) {
+                                    batteryLevel = parts[0].toIntOrNull() ?: 0
+                                    val gear = parts[1].toIntOrNull() ?: 0
+                                    val throttle = parts[2].toIntOrNull() ?: 0
+                                    val direction = parts[3]
+                                    val brake = parts[4]
+                                    val connected = parts[5]
+                                    
+                                    val color = when {
+                                        batteryLevel > 70 -> getColor(R.color.battery_good)
+                                        batteryLevel > 30 -> getColor(R.color.battery_medium)
+                                        else -> getColor(R.color.battery_low)
+                                    }
+                                    
+                                    runOnUiThread {
+                                        binding.textviewBatteryStatus.text = getString(R.string.label_battery, batteryLevel)
+                                        binding.textviewBatteryStatus.setTextColor(color)
+                                        updateGearDisplay(gear, direction)
+                                    }
+                                    
+                                    if (connectionLost) {
+                                        connectionLost = false
+                                        runOnUiThread { updateConnectionStatus(ConnectionStatus.CONNECTED) }
+                                    }
                                 }
                             }
                         }
@@ -563,17 +659,16 @@ class MainActivity : AppCompatActivity(), SensorEventListener {
     }
     
     private enum class ConnectionStatus(val stringRes: Int, val colorRes: Int) {
-        DISCONNECTED(R.string.status_disconnected_dot, android.R.color.holo_red_dark),
-        CONNECTING(R.string.status_connecting_dot, android.R.color.holo_orange_dark),
-        CONNECTED(R.string.status_connected_dot, android.R.color.holo_green_dark),
-        FAILED(R.string.status_failed_dot, android.R.color.holo_red_dark),
-        LOST(R.string.status_lost_dot, android.R.color.holo_orange_dark)
+        DISCONNECTED(R.string.status_disconnected_dot, R.color.status_disconnected),
+        CONNECTING(R.string.status_connecting_dot, R.color.status_connecting),
+        CONNECTED(R.string.status_connected_dot, R.color.status_connected),
+        FAILED(R.string.status_failed_dot, R.color.status_failed),
+        LOST(R.string.status_lost_dot, R.color.status_lost)
     }
     
     private fun updateConnectionStatus(status: ConnectionStatus) {
         binding.textviewConnectionStatus.text = getString(status.stringRes)
         binding.textviewConnectionStatus.setTextColor(getColor(status.colorRes))
-        binding.buttonConnect.text = if (status == ConnectionStatus.CONNECTED) getString(R.string.disconnect) else getString(R.string.connect)
     }
 
     private fun handleConnectionLoss() {

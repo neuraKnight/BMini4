@@ -1,30 +1,60 @@
 <resources>
-    <string name="app_name">BMini4</string>
-    <string name="status_disconnected">Status: Disconnected</string>
-    <string name="status_connected">Status: Connected</string>
-    <string name="status_connection_failed">Status: Connection Failed</string>
-    <string name="ip_address">IP Address</string>
-    <string name="port">Port</string>
+    <string name="app_name">BMini4 V12 Pro</string>
+    
+    <!-- Status Strings -->
+    <string name="status_disconnected">● Disconnected</string>
+    <string name="status_connected">● Connected</string>
+    <string name="status_connection_failed">● Connection Failed</string>
+    <string name="status_connecting">● Connecting…</string>
+    <string name="status_lost">● Connection Lost</string>
+    
+    <!-- Connection Strings -->
     <string name="connect">Connect</string>
     <string name="disconnect">Disconnect</string>
     <string name="connection_successful">Connection successful</string>
     <string name="connection_failed">Connection failed: %s</string>
-    <string name="brake">B R A K E</string>
-    <string name="gas">G A S</string>
-    <string name="disconnected">● Disconnected</string>
-    <string name="headlights">Headlights (double-tap screen)</string>
-    <string name="ind_left">◀</string>
-    <string name="ind_right">▶</string>
-    <string name="ind_off">●</string>
-    <string name="horn">🔊 Horn</string>
+    
+    <!-- Control Strings -->
+    <string name="brake">BRAKE</string>
+    <string name="gas">GAS</string>
+    <string name="headlights">Headlights</string>
+    <string name="brake_lights">Brake Lights</string>
+    <string name="hazard_lights">Hazard Lights</string>
+    <string name="horn">Horn</string>
+    <string name="emergency_stop">EMERGENCY STOP</string>
+    
+    <!-- Steering Strings -->
     <string name="steering">Steering</string>
     <string name="tilt_to_steer">Tilt device to steer</string>
-    <string name="_0">0</string>
+    <string name="steering_angle">%1$d°</string>
+    
+    <!-- Gear & Performance -->
+    <string name="current_gear">Current Gear</string>
+    <string name="performance_mode">Performance Mode</string>
+    <string name="mode_normal">Normal</string>
+    <string name="mode_sport">Sport</string>
+    <string name="mode_eco">Eco</string>
+    <string name="cruise_control">Cruise Control</string>
+    
+    <!-- Sound Controls -->
+    <string name="sound_controls">Sound Controls</string>
+    <string name="sound_engine">Engine</string>
+    <string name="sound_police">Police</string>
+    
+    <!-- Indicators -->
     <string name="indicators">Turn Indicators</string>
-    <string name="led_effects">RGB LED Effects</string>
-    <string name="_connect">Connect</string>
-
-    <!-- RGB Modes -->
+    <string name="ind_left">◀ Left</string>
+    <string name="ind_right">▶ Right</string>
+    <string name="ind_off">● Off</string>
+    
+    <!-- RGB & Lighting -->
+    <string name="rgb_lighting">RGB Lighting</string>
+    <string name="led_effects">LED Effects</string>
+    <string name="lighting_controls">Lighting Controls</string>
+    <string name="color_label">Color:</string>
+    <string name="settings_description">Settings</string>
+    
+    <!-- Enhanced RGB Modes -->
     <string name="rgb_mode_off">Off</string>
     <string name="rgb_mode_solid">Solid</string>
     <string name="rgb_mode_breathe">Breathe</string>
@@ -37,39 +67,45 @@
     <string name="rgb_mode_comet">Comet</string>
     <string name="rgb_mode_wave">Wave</string>
     <string name="rgb_mode_police">Police</string>
-
+    
+    <!-- Enhanced Telemetry -->
+    <string name="battery_na">Battery: N/A</string>
+    <string name="label_battery">Battery: %1$d%%</string>
+    <string name="label_speed">Speed: %1$d km/h</string>
+    <string name="label_gear">Gear: %1$s</string>
+    <string name="gear_n">N</string>
+    <string name="gear_r">R</string>
+    <string name="gear_d">D</string>
+    
     <!-- Colors -->
     <string name="color_red">Red</string>
     <string name="color_green">Green</string>
     <string name="color_blue">Blue</string>
     <string name="color_yellow">Yellow</string>
     <string name="color_white">White</string>
-    <string name="color_label">Color:</string>
-    <string name="quick_colors_label">Quick Colors:</string>
-
+    
     <!-- Dialogs -->
     <string name="dialog_choose_rgb_color">Choose RGB Color</string>
-    <string name="dialog_rgb_settings">RGB Brightness &amp; Speed</string>
+    <string name="dialog_rgb_settings">RGB Settings</string>
     <string name="dialog_apply">Apply</string>
     <string name="dialog_cancel">Cancel</string>
-    <string name="led_brightness">LED Brightness</string>
-    <string name="led_animation_speed">LED Animation Speed</string>
-    <string name="other_preferences">Other Preferences</string>
+    <string name="led_brightness">Brightness</string>
+    <string name="led_animation_speed">Speed</string>
     <string name="auto_indicators">Auto Indicators</string>
     <string name="sound_effects">Sound Effects</string>
-    <string name="rgb_status_mode">RGB Status Mode</string>
-    <string name="speed_fast">Fast</string>
-    <string name="speed_slow">Slow</string>
-
-    <!-- Status and Labels -->
-    <string name="label_speed_ms">%1$dms</string>
-    <string name="label_battery">Battery: %1$d%%</string>
-    <string name="battery_na">Battery: N/A</string>
-    <string name="steering_angle">%1$d°</string>
+    <string name="rgb_status_mode">Status Mode</string>
+    
+    <!-- Status Dots -->
+    <string name="status_disconnected_dot">●  Disconnected</string>
+    <string name="status_connected_dot">●  Connected</string>
     <string name="status_connecting_dot">●  Connecting…</string>
     <string name="status_failed_dot">●  Failed</string>
     <string name="status_lost_dot">●  Connection Lost</string>
-    <string name="status_connected_dot">●  Connected</string>
-    <string name="status_disconnected_dot">●  Disconnected</string>
-    <string name="settings_description">Brightness and speed settings</string>
+    
+    <!-- Labels -->
+    <string name="label_speed_ms">%1$dms</string>
+    <string name="speed_fast">Fast</string>
+    <string name="speed_slow">Slow</string>
+    <string name="_0">0</string>
+    <string name="_connect">Connect</string>
 </resources>
